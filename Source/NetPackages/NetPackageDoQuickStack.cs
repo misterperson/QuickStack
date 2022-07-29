@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 
 // Server => Client
 // Informs client it is safe to quick stack/restock
@@ -21,26 +22,32 @@ class NetPackageDoQuickStack : NetPackageInvManageAction
 
     public override void ProcessPackage(World _world, GameManager _callbacks)
     {
-        if (containerEntities == null || _world == null || containerEntities.Count == 0)
+        if (offsets == null || _world == null || offsets.Count == 0)
         {
             return;
         }
 
+        var lootContainers =
+            from offset in offsets
+            select _callbacks.World.GetTileEntity(0, center + offset) into tileEntity
+            where tileEntity != null && tileEntity is TileEntityLootContainer
+            select (TileEntityLootContainer)tileEntity;
+
         switch (type)
         {
             case QuickStackType.Stack:
-                QuickStack.ClientMoveQuickStack(center, containerEntities);
+                QuickStack.ClientMoveQuickStack(lootContainers);
                 break;
 
             case QuickStackType.Restock:
-                QuickStack.ClientMoveQuickRestock(center, containerEntities);
+                QuickStack.ClientMoveQuickRestock(lootContainers);
                 break;
 
             default:
                 break;
         }
 
-        ConnectionManager.Instance.SendToServer(NetPackageManager.GetPackage<NetPackageUnlockContainers>().Setup(center, containerEntities));
+        ConnectionManager.Instance.SendToServer(NetPackageManager.GetPackage<NetPackageUnlockContainers>().Setup(center, offsets));
     }
 
     public override void read(PooledBinaryReader _reader)

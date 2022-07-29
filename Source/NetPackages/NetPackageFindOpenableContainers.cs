@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 
 // Client => Server
 // Requests a list of containers that are safe to modify
@@ -7,16 +8,15 @@ class NetPackageFindOpenableContainers : NetPackage
     public override NetPackageDirection PackageDirection => NetPackageDirection.ToServer;
     public override bool AllowedBeforeAuth => false;
 
-    public NetPackageFindOpenableContainers Setup(int _playerEntityId, QuickStackType _type)
+    public NetPackageFindOpenableContainers Setup(QuickStackType _type)
     {
-        playerEntityId = _playerEntityId;
         type = _type;
         return this;
     }
 
     public override int GetLength()
     {
-        return 5;
+        return 1;
     }
 
     public override void ProcessPackage(World _world, GameManager _callbacks)
@@ -31,13 +31,7 @@ class NetPackageFindOpenableContainers : NetPackage
             return;
         }
 
-        if (!_world.Players.dict.TryGetValue(playerEntityId, out var playerEntity) || playerEntity == null)
-        {
-            return;
-        }
-
-        var cinfo = ConnectionManager.Instance.Clients.ForEntityId(playerEntityId);
-        if (cinfo == null)
+        if (!_world.Players.dict.TryGetValue(Sender.entityId, out var playerEntity) || playerEntity == null)
         {
             return;
         }
@@ -48,38 +42,34 @@ class NetPackageFindOpenableContainers : NetPackage
             return;
         }
 
-        List<Vector3i> openableEntities = new List<Vector3i>(256);
+        List<Vector3i> offsets = new List<Vector3i>(256);
 
         var center = new Vector3i(playerEntity.position);
-        foreach (var centerEntityPair in QuickStack.FindNearbyLootContainers(center, playerEntityId))
+        var unlockedContainers = QuickStack.FindNearbyLootContainers(center)
+            .Where(pair => QuickStack.UserCanOpen(Sender.CrossplatformId, pair.Item2));
+
+        foreach (var (offset, entity) in unlockedContainers)
         {
-            if (centerEntityPair.Item2 == null)
-            {
-                continue;
-            }
-            openableEntities.Add(centerEntityPair.Item1);
-            lockedTileEntities.Add(centerEntityPair.Item2, playerEntityId);
+            offsets.Add(offset);
+            lockedTileEntities.Add(entity, Sender.entityId);
         }
 
-        if (openableEntities.Count > 0)
+        if (offsets.Count > 0)
         {
-            cinfo.SendPackage(NetPackageManager.GetPackage<NetPackageDoQuickStack>().Setup(center, openableEntities, type));
+            Sender.SendPackage(NetPackageManager.GetPackage<NetPackageDoQuickStack>().Setup(center, offsets, type));
         }
     }
 
     public override void read(PooledBinaryReader _reader)
     {
-        playerEntityId = _reader.ReadInt32();
         type = (QuickStackType)_reader.ReadByte();
     }
 
     public override void write(PooledBinaryWriter _writer)
     {
         base.write(_writer);
-        _writer.Write(playerEntityId);
         _writer.Write((byte)type);
     }
 
-    protected int playerEntityId;
     protected QuickStackType type;
 }

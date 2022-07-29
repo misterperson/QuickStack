@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 
 // Client => Server
 // Notifies server that containers are no longer in-use
@@ -14,24 +15,26 @@ class NetPackageUnlockContainers : NetPackageInvManageAction
 
     public override void ProcessPackage(World _world, GameManager _callbacks)
     {
-        if (containerEntities == null || _world == null)
+        if (offsets == null || _world == null)
         {
             return;
         }
 
-        var lockedTileEntities = QuickStack.GetOpenedTiles();
-        if (lockedTileEntities == null)
+        var openContainers = QuickStack.GetOpenedTiles();
+        if (openContainers == null)
         {
             return;
         }
 
-        foreach (var offset in containerEntities)
+        var containersToClose =
+            from offset in offsets
+            select _world.GetTileEntity(0, center + offset) into container where container != null
+            where openContainers.TryGetValue(container, out int playerEntityId) && playerEntityId == Sender.entityId
+            select container;
+
+        foreach (var container in containersToClose)
         {
-            var entity = _world.GetTileEntity(0, center + offset);
-            if (entity != null)
-            {
-                lockedTileEntities.Remove(entity);
-            }
+            openContainers.Remove(container);
         }
     }
 

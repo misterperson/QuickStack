@@ -20,7 +20,7 @@ internal class Patches
                 {
                     childById.OnPress += delegate (XUiController _sender, int _args)
                     {
-                        QuickStack.QuickStackOnClick();
+                        QuickStack.QuickInventoryOnClick(QuickStackType.Stack);
                     };
                 }
 
@@ -29,7 +29,7 @@ internal class Patches
                 {
                     childById.OnPress += delegate (XUiController _sender, int _args)
                     {
-                        QuickStack.QuickRestockOnClick();
+                        QuickStack.QuickInventoryOnClick(QuickStackType.Restock);
                     };
                 }
             }
@@ -269,12 +269,12 @@ internal class Patches
         {
             if (UICamera.GetKeyDown(KeyCode.Z) && UICamera.GetKey(KeyCode.LeftAlt))
             {
-                QuickStack.QuickRestockOnClick();
+                QuickStack.QuickInventoryOnClick(QuickStackType.Restock);
                 Manager.PlayButtonClick();
             }
             else if (UICamera.GetKeyDown(KeyCode.X) && UICamera.GetKey(KeyCode.LeftAlt))
             {
-                QuickStack.QuickStackOnClick();
+                QuickStack.QuickInventoryOnClick(QuickStackType.Stack);
                 Manager.PlayButtonClick();
             }
         }

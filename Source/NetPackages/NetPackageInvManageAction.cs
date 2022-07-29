@@ -9,11 +9,11 @@ public abstract class NetPackageInvManageAction : NetPackage
     protected NetPackageInvManageAction Setup(Vector3i _center, List<Vector3i> _containerEntities)
     {
         center = _center;
-        containerEntities = _containerEntities;
+        offsets = _containerEntities;
         return this;
     }
 
-    // Requantizes Vector3i to a 3-bytes. Requires -128 < x, y, z <= 128 
+    // Truncates Vector3i to 3-bytes. Requires -128 < x, y, z < 128 
     protected static void WriteOptimized(PooledBinaryWriter _writer, Vector3i ivec3)
     {
         _writer.Write((sbyte)ivec3.x);
@@ -31,7 +31,7 @@ public abstract class NetPackageInvManageAction : NetPackage
         };
     }
 
-    // Vector3i without any requantization. Full range, but takes up 4x more space
+    // Vector3i without any truncation. Full range, but takes up 4x more space
     protected static void Write(PooledBinaryWriter _writer, Vector3i ivec3)
     {
         _writer.Write(ivec3.x);
@@ -51,22 +51,21 @@ public abstract class NetPackageInvManageAction : NetPackage
 
     public override int GetLength()
     {
-        return 3 * sizeof(int) + sizeof(ushort) + 3 * containerEntities.Count;
+        return 3 * sizeof(int) + sizeof(ushort) + 3 * offsets.Count;
     }
 
     public abstract override void ProcessPackage(World _world, GameManager _callbacks);
 
     public override void read(PooledBinaryReader _reader)
     {
-
         Read(_reader, out center);
 
         int count = _reader.ReadInt16();
-        containerEntities = new List<Vector3i>(count);
+        offsets = new List<Vector3i>(count);
         for (int i = 0; i < count; ++i)
         {
             ReadOptimized(_reader, out var idx);
-            containerEntities.Add(idx);
+            offsets.Add(idx);
         }
     }
 
@@ -76,19 +75,19 @@ public abstract class NetPackageInvManageAction : NetPackage
 
         Write(_writer, center);
 
-        if (containerEntities == null)
+        if (offsets == null)
         {
             _writer.Write((ushort)0);
             return;
         }
 
-        _writer.Write((ushort)containerEntities.Count);
-        foreach (var id in containerEntities)
+        _writer.Write((ushort)offsets.Count);
+        foreach (var id in offsets)
         {
             WriteOptimized(_writer, id);
         }
     }
 
     protected Vector3i center;
-    protected List<Vector3i> containerEntities = new List<Vector3i>();
+    protected List<Vector3i> offsets = new List<Vector3i>();
 }
