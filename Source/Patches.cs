@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using Audio;
 using HarmonyLib;
 using UnityEngine;
@@ -45,17 +46,15 @@ internal class Patches
             if (__instance.Parent.Parent.GetType() != typeof(XUiC_BackpackWindow))
                 return true;
 
-            XUiC_ItemStackGrid srcGrid;
-            IInventory dstInventory;
-            if (__instance.MoveAllowed(out srcGrid, out dstInventory))
+            if (__instance.MoveAllowed(out var srcGrid, out var dstInventory))
             {
-                ValueTuple<bool, bool> valueTuple = QuickStack.StashItems(srcGrid, dstInventory, Traverse.Create(__instance).Field("stashLockedSlots").GetValue<int>(), XUiM_LootContainer.EItemMoveKind.All, __instance.MoveStartBottomRight);
-                Action<bool, bool> moveAllDone = __instance.MoveAllDone;
+                var (emptied, modified) = QuickStack.StashItems(srcGrid, dstInventory, Traverse.Create(__instance).Field("stashLockedSlots").GetValue<int>(), XUiM_LootContainer.EItemMoveKind.All, __instance.MoveStartBottomRight);
+                var moveAllDone = __instance.MoveAllDone;
                 if (moveAllDone == null)
                 {
                     return false;
                 }
-                moveAllDone(valueTuple.Item1, valueTuple.Item2);
+                moveAllDone(emptied, modified);
             }
 
             return false;
@@ -71,15 +70,13 @@ internal class Patches
             if (__instance.Parent.Parent.GetType() != typeof(XUiC_BackpackWindow))
                 return true;
 
-            var moveKind = QuickStack.GetMoveKind();
+            var moveKind = QuickStack.GetMoveKind(QuickStackType.Stack);
             if (moveKind == XUiM_LootContainer.EItemMoveKind.FillOnly)
             {
                 moveKind = XUiM_LootContainer.EItemMoveKind.FillOnlyFirstCreateSecond;
             }
 
-            XUiC_ItemStackGrid srcGrid;
-            IInventory dstInventory;
-            if (__instance.MoveAllowed(out srcGrid, out dstInventory))
+            if (__instance.MoveAllowed(out var srcGrid, out var dstInventory))
             {
                 QuickStack.StashItems(srcGrid, dstInventory, Traverse.Create(__instance).Field("stashLockedSlots").GetValue<int>(), moveKind, __instance.MoveStartBottomRight);
             }
@@ -97,9 +94,7 @@ internal class Patches
             if (__instance.Parent.Parent.GetType() != typeof(XUiC_BackpackWindow))
                 return true;
 
-            XUiC_ItemStackGrid srcGrid;
-            IInventory dstInventory;
-            if (__instance.MoveAllowed(out srcGrid, out dstInventory))
+            if (__instance.MoveAllowed(out var srcGrid, out var dstInventory))
             {
                 QuickStack.StashItems(srcGrid, dstInventory, Traverse.Create(__instance).Field("stashLockedSlots").GetValue<int>(), XUiM_LootContainer.EItemMoveKind.FillOnly, __instance.MoveStartBottomRight);
             }
@@ -117,9 +112,7 @@ internal class Patches
             if (__instance.Parent.Parent.GetType() != typeof(XUiC_BackpackWindow))
                 return true;
 
-            XUiC_ItemStackGrid srcGrid;
-            IInventory dstInventory;
-            if (__instance.MoveAllowed(out srcGrid, out dstInventory))
+            if (__instance.MoveAllowed(out var srcGrid, out var dstInventory))
             {
                 QuickStack.StashItems(srcGrid, dstInventory, Traverse.Create(__instance).Field("stashLockedSlots").GetValue<int>(), XUiM_LootContainer.EItemMoveKind.FillAndCreate, __instance.MoveStartBottomRight);
             }
@@ -139,45 +132,28 @@ internal class Patches
 
             int lockedSlots = Traverse.Create(QuickStack.playerControls).Field("stashLockedSlots").GetValue<int>();
 
-            XUiC_ItemStackGrid srcGrid;
-            IInventory dstInventory;
-            __instance.MoveAllowed(out srcGrid, out dstInventory);
+            _ = __instance.MoveAllowed(out var srcGrid, out _);
 
-            XUiController[] itemStackControllers = srcGrid.GetItemStackControllers();
+            bool SlotIsUnlocked(XUiC_ItemStack controller)
+            {
+                return !(controller).StackLock &&
+                    Traverse.Create(controller).Field("lockType").GetValue<XUiC_ItemStack.LockTypes>() == XUiC_ItemStack.LockTypes.None;
+            }
 
             //Count the number of unlocked slots
             //We do this so we don't convert back and forth between List<ItemStack> and ItemStack[] since original code uses arrays.
-            int numUnlockedSlots = 0;
-            for (int i = lockedSlots; i < itemStackControllers.Length; ++i)
-            {
-                if (Traverse.Create(itemStackControllers[i]).Field("lockType").GetValue<XUiC_ItemStack.LockTypes>() == XUiC_ItemStack.LockTypes.None && !((XUiC_ItemStack)itemStackControllers[i]).StackLock)
-                {
-                    ++numUnlockedSlots;
-                }
-            }
-
-            //Create an empty array the size of the backpack minus the locked slots and add every unlocked itemstack
-            ItemStack[] items = new ItemStack[numUnlockedSlots];
-            int j = 0;
-            for (int i = lockedSlots; i < itemStackControllers.Length; ++i)
-            {
-                if (Traverse.Create(itemStackControllers[i]).Field("lockType").GetValue<XUiC_ItemStack.LockTypes>() == XUiC_ItemStack.LockTypes.None && !((XUiC_ItemStack)itemStackControllers[i]).StackLock)
-                {
-                    items[j++] = ((XUiC_ItemStack)itemStackControllers[i]).ItemStack;
-                }
-            }
+            XUiC_ItemStack[] unlockedSlots = srcGrid.GetItemStackControllers()
+                .Select(stackController => stackController as XUiC_ItemStack)
+                .Where(SlotIsUnlocked)
+                .ToArray();
 
             //Combine and sort itemstacks using original code
-            items = StackSortUtil.CombineAndSortStacks(items, 0);
+            ItemStack[] items = StackSortUtil.CombineAndSortStacks(unlockedSlots.Select(slot => slot.ItemStack).ToArray(), 0);
 
             //Add back itemstack in sorted order, skipping through the lock slots.
-            j = 0;
-            for (int i = lockedSlots; i < itemStackControllers.Length; ++i)
+            for(int i = 0; i < items.Length; ++i)
             {
-                if (Traverse.Create(itemStackControllers[i]).Field("lockType").GetValue<XUiC_ItemStack.LockTypes>() == XUiC_ItemStack.LockTypes.None && !((XUiC_ItemStack)itemStackControllers[i]).StackLock)
-                {
-                    ((XUiC_ItemStack)itemStackControllers[i]).ItemStack = items[j++];
-                }
+                unlockedSlots[i].ItemStack = items[i];
             }
 
             return false;
