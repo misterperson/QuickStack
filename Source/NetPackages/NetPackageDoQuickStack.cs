@@ -27,23 +27,17 @@ class NetPackageDoQuickStack : NetPackageInvManageAction
             return;
         }
 
-        var lootContainers =
-            from offset in offsets
-            select _callbacks.World.GetTileEntity(0, center + offset) into tileEntity
-            where tileEntity != null && tileEntity is TileEntityLootContainer
-            select (TileEntityLootContainer)tileEntity;
+        var lootContainers = offsets
+            .Select(offset => _callbacks.World.GetTileEntity(0, center + offset) as TileEntityLootContainer)
+            .Where(container => container != null);
 
         switch (type)
         {
             case QuickStackType.Stack:
-                QuickStack.ClientMoveQuickStack(lootContainers);
+                QuickStack.MoveQuickStack(lootContainers);
                 break;
-
             case QuickStackType.Restock:
-                QuickStack.ClientMoveQuickRestock(lootContainers);
-                break;
-
-            default:
+                QuickStack.MoveQuickRestock(lootContainers);
                 break;
         }
 

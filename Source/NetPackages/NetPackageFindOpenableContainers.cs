@@ -21,17 +21,12 @@ class NetPackageFindOpenableContainers : NetPackage
 
     public override void ProcessPackage(World _world, GameManager _callbacks)
     {
-        if (_world == null)
+        if (type >= QuickStackType.Count)
         {
             return;
         }
 
-        if (type >= QuickStackType.Count || type < QuickStackType.Stack)
-        {
-            return;
-        }
-
-        if (!_world.Players.dict.TryGetValue(Sender.entityId, out var playerEntity) || playerEntity == null)
+        if (_world == null || !_world.Players.dict.TryGetValue(Sender.entityId, out var playerEntity) || playerEntity == null)
         {
             return;
         }
@@ -43,21 +38,19 @@ class NetPackageFindOpenableContainers : NetPackage
         }
 
         List<Vector3i> offsets = new List<Vector3i>(256);
-
         var center = new Vector3i(playerEntity.position);
         var unlockedContainers = QuickStack.FindNearbyLootContainers(center)
             .Where(pair => QuickStack.UserCanOpen(Sender.CrossplatformId, pair.Item2));
 
-        foreach (var (offset, entity) in unlockedContainers)
+        foreach ((Vector3i offset, TileEntity entity) in unlockedContainers)
         {
             offsets.Add(offset);
             lockedTileEntities.Add(entity, Sender.entityId);
         }
 
-        if (offsets.Count > 0)
-        {
-            Sender.SendPackage(NetPackageManager.GetPackage<NetPackageDoQuickStack>().Setup(center, offsets, type));
-        }
+        if(offsets.Count == 0) { return; }
+
+        Sender.SendPackage(NetPackageManager.GetPackage<NetPackageDoQuickStack>().Setup(center, offsets, type));
     }
 
     public override void read(PooledBinaryReader _reader)

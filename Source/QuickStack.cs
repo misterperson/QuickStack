@@ -4,7 +4,7 @@ using HarmonyLib;
 using UnityEngine;
 using System.Linq;
 
-public enum QuickStackType : byte 
+internal enum QuickStackType : byte 
 {
     Stack = 0,
     Restock,
@@ -14,11 +14,13 @@ public enum QuickStackType : byte
 internal class QuickStack 
 {
     public static float[] lastClickTimes = new float[(int)QuickStackType.Count];
-    public static int stackRadius = 7;
+
+    private static int stackRadius = 7;
+
     public static XUiC_Backpack playerBackpack;
     public static XUiC_BackpackWindow backpackWindow;
     public static XUiC_ContainerStandardControls playerControls;
-    public static int customLockEnum = (int)XUiC_ItemStack.LockTypes.Burning + 1; //XUiC_ItemStack.LockTypes - Last used is Burning with value 5, so we use 6 for our custom locked slots
+    public static readonly int customLockEnum = (int)XUiC_ItemStack.LockTypes.Burning + 1; //XUiC_ItemStack.LockTypes - Last used is Burning with value 5, so we use 6 for our custom locked slots
 
     internal static Dictionary<TileEntity, int> GetOpenedTiles()
     {
@@ -29,8 +31,8 @@ internal class QuickStack
     // Callable only by Dedicated Server/Host
     internal static bool UserCanOpen(PlatformUserIdentifierAbs _userId, TileEntity _tileEntity)
     {
-        if (!ConnectionManager.Instance.IsServer ||
-            _tileEntity == null || _userId == null)
+        if (ConnectionManager.Instance.IsClient ||
+            _userId == null || _tileEntity == null)
         {
             return false;
         }
@@ -42,6 +44,13 @@ internal class QuickStack
         }
 
         return true;
+    }
+
+    internal static bool IsValidLoot(TileEntityLootContainer _tileEntity)
+    {
+        return (_tileEntity.GetTileEntityType() == TileEntityType.Loot ||
+            _tileEntity.GetTileEntityType() == TileEntityType.SecureLoot ||
+            _tileEntity.GetTileEntityType() == TileEntityType.SecureLootSigned);
     }
 
     // Checks if a loot container is currently open
@@ -60,21 +69,10 @@ internal class QuickStack
         return true;
     }
 
-    internal static bool IsValidLoot(TileEntityLootContainer _tileEntity)
-    {
-        return (_tileEntity.GetTileEntityType() == TileEntityType.Loot ||
-            _tileEntity.GetTileEntityType() == TileEntityType.SecureLoot ||
-            _tileEntity.GetTileEntityType() == TileEntityType.SecureLootSigned);
-    }
-
     // Yields all openable loot containers in a cubic radius about a point
     internal static IEnumerable<(Vector3i, TileEntityLootContainer)> FindNearbyLootContainers(Vector3i _center)
     {
-        if (stackRadius > sbyte.MaxValue)
-        {
-            stackRadius = sbyte.MaxValue;
-        }
-
+        stackRadius = Mathf.Clamp(stackRadius, 0, sbyte.MaxValue);
         for (int i = -stackRadius; i <= stackRadius; i++)
         {
             for (int j = -stackRadius; j <= stackRadius; j++)
@@ -82,7 +80,7 @@ internal class QuickStack
                 for (int k = -stackRadius; k <= stackRadius; k++)
                 {
                     var offset = new Vector3i(i, j, k);
-                    if (!(GameManager.Instance.World.GetTileEntity(0, _center + offset) is TileEntityLootContainer tileEntity))
+                    if (!(GameManager.Instance.World.GetTileEntity(0, _center + offset) is TileEntityLootContainer tileEntity) || tileEntity == null)
                     {
                         continue;
                     }
@@ -97,13 +95,27 @@ internal class QuickStack
     }
 
     // Gets the EItemMoveKind for the current move type based on the last time that move type was requested
-    internal static XUiM_LootContainer.EItemMoveKind GetMoveKind(QuickStackType _type = QuickStackType.Stack)
+    internal static XUiM_LootContainer.EItemMoveKind GetMoveKind(QuickStackType _type)
     {
-        float unscaledTime = Time.unscaledTime;
-        float lastClickTime = lastClickTimes[(int)_type];
-        lastClickTimes[(int)_type] = unscaledTime;
+        if (_type >= QuickStackType.Count)
+        {
+            throw new ArgumentOutOfRangeException();
+        }
 
-        if (unscaledTime - lastClickTime < 2.0f)
+        // Assigns a value to a location, returning the old value at the location
+        float Exchange(ref float location, float value)
+        {
+            float old = location;
+            location = value;
+            return old;
+        }
+
+        int idx = (int)_type;
+        float lastClickTime = Exchange(ref lastClickTimes[idx], Time.unscaledTime);
+
+        // if we last tried the same stash type and
+        // we tried it within the last 2 seconds
+        if (lastClickTimes[1 - idx] < lastClickTime && Time.unscaledTime - lastClickTime < 2.0f)
         {
             return XUiM_LootContainer.EItemMoveKind.FillAndCreate;
         } else
@@ -112,9 +124,13 @@ internal class QuickStack
         }
     }
 
-    public static void ClientMoveQuickStack(IEnumerable<TileEntityLootContainer> _entityContainers)
+    public static void MoveQuickStack(IEnumerable<TileEntityLootContainer> _entityContainers)
     {
-        if (_entityContainers == null || backpackWindow.xui.lootContainer != null && backpackWindow.xui.lootContainer.entityId == -1)
+        if (backpackWindow.xui.lootContainer != null && backpackWindow.xui.lootContainer.entityId == -1)
+        {
+            return;
+        }
+        if (_entityContainers == null)
         {
             return;
         }
@@ -125,24 +141,26 @@ internal class QuickStack
 
         foreach (var tileEntity in _entityContainers)
         {
-            StashItems(playerBackpack, tileEntity, lockedSlots, moveKind, playerControls.MoveStartBottomRight);
-            tileEntity.SetModified();
+            var (_, modified) = StashItems(playerBackpack, tileEntity, lockedSlots, moveKind, playerControls.MoveStartBottomRight);
+            if (modified)
+            {
+                tileEntity.SetModified();
+            }
         }
     }
 
-    public static void ClientMoveQuickRestock(IEnumerable<TileEntityLootContainer> _entityContainers)
+    public static void MoveQuickRestock(IEnumerable<TileEntityLootContainer> _entityContainers)
     {
         if (backpackWindow.xui.lootContainer != null && backpackWindow.xui.lootContainer.entityId == -1)
+        {
             return;
-
-
-        var moveKind = GetMoveKind(QuickStackType.Restock);
-
+        }
         if (_entityContainers == null)
         {
             return;
         }
 
+        XUiM_LootContainer.EItemMoveKind moveKind = GetMoveKind(QuickStackType.Restock);
         EntityPlayerLocal primaryPlayer = GameManager.Instance.World.GetPrimaryPlayer();
         LocalPlayerUI playerUI = LocalPlayerUI.GetUIForPlayer(primaryPlayer);
         int lockedSlots = Traverse.Create(playerControls).Field("stashLockedSlots").GetValue<int>();
@@ -153,27 +171,36 @@ internal class QuickStack
         foreach (var tileEntity in _entityContainers)
         {
             lootWindowGroup.SetTileEntityChest("QUICKSTACK", tileEntity);
-            StashItems(lootContainer, primaryPlayer.bag, lockedSlots, moveKind, playerControls.MoveStartBottomRight);
-            tileEntity.SetModified();
+            var (_, modified) = StashItems(lootContainer, primaryPlayer.bag, lockedSlots, moveKind, playerControls.MoveStartBottomRight);
+            if (modified)
+            {
+                tileEntity.SetModified();
+            }
         }
     }
 
-    //Refactored from the original code to remove stash time due to quick stack/restock and check for custom locks
-    public static ValueTuple<bool, bool> StashItems(XUiC_ItemStackGrid _srcGrid, IInventory _dstInventory, int _ignoredSlots, XUiM_LootContainer.EItemMoveKind _moveKind, bool _startBottomRight)
+    
+    // Attempts to transfer all stackable items from the source grid to the destination inventory
+    // _moveKind indicates the criteria for filling new inventory slots in the destination
+    // first flag is true if the source container was emptied
+    // second flag is true if any item transfer took place
+    public static (bool, bool) StashItems(XUiC_ItemStackGrid _srcGrid, IInventory _dstInventory, int _ignoredSlots, XUiM_LootContainer.EItemMoveKind _moveKind, bool _startBottomRight)
     {
         if (_srcGrid == null || _dstInventory == null)
         {
-            return new ValueTuple<bool, bool>(false, false);
+            return (false, false);
         }
+
         XUiController[] itemStackControllers = _srcGrid.GetItemStackControllers();
 
-        bool item = true;
-        bool item2 = false;
+        bool sourceEmptied = true;
+        bool containersModified = false;
+
         int num = _startBottomRight ? (itemStackControllers.Length - 1) : _ignoredSlots;
         while (_startBottomRight ? (num >= _ignoredSlots) : (num < itemStackControllers.Length))
         {
             XUiC_ItemStack xuiC_ItemStack = (XUiC_ItemStack)itemStackControllers[num];
-            if (!xuiC_ItemStack.StackLock && Traverse.Create(xuiC_ItemStack).Field("lockType").GetValue<int>() != QuickStack.customLockEnum)
+            if (!xuiC_ItemStack.StackLock && Traverse.Create(xuiC_ItemStack).Field("lockType").GetValue<int>() != customLockEnum)
             {
                 ItemStack itemStack = xuiC_ItemStack.ItemStack;
                 if (!xuiC_ItemStack.ItemStack.IsEmpty())
@@ -189,19 +216,20 @@ internal class QuickStack
                         itemStack = ItemStack.Empty.Clone();
                     } else
                     {
-                        item = false;
+                        sourceEmptied = false;
                     }
+
                     if (count != itemStack.count)
                     {
                         xuiC_ItemStack.ForceSetItemStack(itemStack);
-                        item2 = true;
+                        containersModified = true;
                     }
                 }
             }
             num = (_startBottomRight ? (num - 1) : (num + 1));
         }
 
-        return new ValueTuple<bool, bool>(item, item2);
+        return (sourceEmptied, containersModified);
     }
 
     // UI Delegate
@@ -211,41 +239,36 @@ internal class QuickStack
         {
             throw new ArgumentOutOfRangeException();
         }
-
-        // Singleplayer or Host
-        if (ConnectionManager.Instance.IsSinglePlayer ||
-            (!GameManager.IsDedicatedServer && ConnectionManager.Instance.IsServer))
+        
+        // Multiplayer Client
+        if (ConnectionManager.Instance.IsClient)
+        {
+            // Sets off a chain of NetPackages:
+            // Client => Server       Server => Client Client => Server
+            // FindOpenableContainers   DoQuickStack   UnlockContainers
+            ConnectionManager.Instance.SendToServer(NetPackageManager.GetPackage<NetPackageFindOpenableContainers>().Setup(_type));
+        }
+        // Multiplayer Host or SinglePlayer
+        else if (!GameManager.IsDedicatedServer)
         {
             var center = new Vector3i(GameManager.Instance.World.GetPrimaryPlayer().position);
 
             var lootContainers = FindNearbyLootContainers(center)
                 .Select(pair => pair.Item2);
 
-            if(!ConnectionManager.Instance.IsSinglePlayer)
+            if (!ConnectionManager.Instance.IsSinglePlayer)
             {
-                var userId = GameManager.Instance.persistentLocalPlayer.UserIdentifier;
                 lootContainers = lootContainers
-                    .Where(container => UserCanOpen(userId, container));
+                    .Where(container => UserCanOpen(GameManager.Instance.persistentLocalPlayer.UserIdentifier, container));
             }
 
-            switch(_type)
+            if (_type == QuickStackType.Restock)
             {
-                case QuickStackType.Restock:
-                    ClientMoveQuickRestock(lootContainers);
-                    break;
-
-                case QuickStackType.Stack:
-                    ClientMoveQuickStack(lootContainers);
-                    break;
-
-                default:
-                    break;
+                MoveQuickRestock(lootContainers);
+            } else
+            {
+                MoveQuickStack(lootContainers);
             }
         } 
-        // Multiplayer client
-        else if (ConnectionManager.Instance.IsClient)
-        {
-            ConnectionManager.Instance.SendToServer(NetPackageManager.GetPackage<NetPackageFindOpenableContainers>().Setup(_type));
-        }
     }
 }

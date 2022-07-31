@@ -7,35 +7,25 @@ class NetPackageUnlockContainers : NetPackageInvManageAction
 {
     public override NetPackageDirection PackageDirection => NetPackageDirection.ToServer;
 
-    public new NetPackageUnlockContainers Setup(Vector3i _center, List<Vector3i> _containerEntities)
+    public new NetPackageUnlockContainers Setup(Vector3i _center, List<Vector3i> _offsets)
     {
-        _ = base.Setup(_center, _containerEntities);
+        _ = base.Setup(_center, _offsets);
         return this;
     }
 
     public override void ProcessPackage(World _world, GameManager _callbacks)
     {
-        if (offsets == null || _world == null)
-        {
-            return;
-        }
-
         var openContainers = QuickStack.GetOpenedTiles();
-        if (openContainers == null)
-        {
-            return;
-        }
 
-        var containersToClose =
-            from offset in offsets
-            select _world.GetTileEntity(0, center + offset) into container where container != null
-            where openContainers.TryGetValue(container, out int playerEntityId) && playerEntityId == Sender.entityId
-            select container;
+        if(openContainers == null) { return; }
 
-        foreach (var container in containersToClose)
+        var toRemove = offsets
+            .Select(offset => _world.GetTileEntity(0, center + offset))
+            .Where(entity => openContainers.TryGetValue(entity, out int openedBy) && openedBy == Sender.entityId);
+
+        foreach (var container in toRemove)
         {
             openContainers.Remove(container);
         }
     }
-
 }

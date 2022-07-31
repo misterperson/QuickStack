@@ -4,7 +4,10 @@
 public abstract class NetPackageInvManageAction : NetPackage
 {
     public override NetPackageDirection PackageDirection => NetPackageDirection.Both;
+
     public override bool AllowedBeforeAuth => false;
+
+    public override bool Compress => true;
 
     protected NetPackageInvManageAction Setup(Vector3i _center, List<Vector3i> _containerEntities)
     {
@@ -88,6 +91,6 @@ public abstract class NetPackageInvManageAction : NetPackage
         }
     }
 
-    protected Vector3i center;
-    protected List<Vector3i> offsets = new List<Vector3i>();
+    protected Vector3i center = new Vector3i(0,0,0);
+    protected List<Vector3i> offsets = null;
 }
