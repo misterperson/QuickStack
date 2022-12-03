@@ -1,7 +1,9 @@
 ﻿using HarmonyLib;
 
-namespace QuickStackExtensions {
-    static partial class XUiC_ItemStack_Extensions  {
+namespace QuickStackExtensions
+{
+    static partial class XUiC_ItemStack_Extensions
+    {
         public static Traverse LockType(this XUiC_ItemStack itemStackContoller)
         {
             return Traverse.Create(itemStackContoller).Field("lockType");

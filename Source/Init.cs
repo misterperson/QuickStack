@@ -1,7 +1,7 @@
-﻿using System.IO;
+﻿using HarmonyLib;
+using System.IO;
 using System.Reflection;
 using System.Xml;
-using HarmonyLib;
 using UnityEngine;
 
 //Harmony entry point.
@@ -14,7 +14,9 @@ public class QuickStackModApi : IModApi
         {
             string path = GamePrefs.GetString(EnumGamePrefs.UserDataFolder) + "/Mods/QuickStack";
             if (!Directory.Exists(path))
+            {
                 path = Directory.GetCurrentDirectory() + "/Mods/QuickStack";
+            }
 
             XmlDocument xml = new XmlDocument();
             xml.Load(path + "/QuickStackConfig.xml");
@@ -22,17 +24,23 @@ public class QuickStackModApi : IModApi
             string[] quickLockButtons = xml.GetElementsByTagName("QuickLockButtons")[0].InnerText.Split(' ');
             QuickStack.quickLockHotkeys = new KeyCode[quickLockButtons.Length];
             for (int i = 0; i < quickLockButtons.Length; i++)
+            {
                 QuickStack.quickLockHotkeys[i] = (KeyCode)int.Parse(quickLockButtons[i]);
+            }
 
             string[] quickStackButtons = xml.GetElementsByTagName("QuickStackButtons")[0].InnerText.Split(' ');
             QuickStack.quickStackHotkeys = new KeyCode[quickStackButtons.Length];
             for (int i = 0; i < quickStackButtons.Length; i++)
+            {
                 QuickStack.quickStackHotkeys[i] = (KeyCode)int.Parse(quickStackButtons[i]);
+            }
 
             string[] quickRestockButtons = xml.GetElementsByTagName("QuickRestockButtons")[0].InnerText.Split(' ');
             QuickStack.quickRestockHotkeys = new KeyCode[quickRestockButtons.Length];
             for (int i = 0; i < quickRestockButtons.Length; i++)
+            {
                 QuickStack.quickRestockHotkeys[i] = (KeyCode)int.Parse(quickRestockButtons[i]);
+            }
         }
         catch
         {

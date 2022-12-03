@@ -1,9 +1,9 @@
-﻿using System;
-using System.IO;
-using System.Linq;
-using Audio;
+﻿using Audio;
 using HarmonyLib;
 using QuickStackExtensions;
+using System;
+using System.IO;
+using System.Linq;
 using UnityEngine;
 internal class Patches
 {
@@ -45,11 +45,11 @@ internal class Patches
         public static bool Prefix(XUiC_ContainerStandardControls __instance)
         {
             if (__instance.Parent.Parent.GetType() != typeof(XUiC_BackpackWindow))
+            {
                 return true;
+            }
 
-            XUiC_ItemStackGrid srcGrid;
-            IInventory dstInventory;
-            if (__instance.MoveAllowed(out srcGrid, out dstInventory))
+            if (__instance.MoveAllowed(out var srcGrid, out var dstInventory))
             {
                 ValueTuple<bool, bool> valueTuple = QuickStack.StashItems(srcGrid, dstInventory, __instance.StashLockedSlots(), XUiM_LootContainer.EItemMoveKind.All, __instance.MoveStartBottomRight);
                 Action<bool, bool> moveAllDone = __instance.MoveAllDone;
@@ -71,7 +71,9 @@ internal class Patches
         public static bool Prefix(XUiC_ContainerStandardControls __instance)
         {
             if (__instance.Parent.Parent.GetType() != typeof(XUiC_BackpackWindow))
+            {
                 return true;
+            }
 
             var moveKind = QuickStack.GetMoveKind();
             if (moveKind == XUiM_LootContainer.EItemMoveKind.FillOnly)
@@ -79,9 +81,7 @@ internal class Patches
                 moveKind = XUiM_LootContainer.EItemMoveKind.FillOnlyFirstCreateSecond;
             }
 
-            XUiC_ItemStackGrid srcGrid;
-            IInventory dstInventory;
-            if (__instance.MoveAllowed(out srcGrid, out dstInventory))
+            if (__instance.MoveAllowed(out var srcGrid, out var dstInventory))
             {
                 QuickStack.StashItems(srcGrid, dstInventory, __instance.StashLockedSlots(), moveKind, __instance.MoveStartBottomRight);
             }
@@ -97,11 +97,11 @@ internal class Patches
         public static bool Prefix(XUiC_ContainerStandardControls __instance)
         {
             if (__instance.Parent.Parent.GetType() != typeof(XUiC_BackpackWindow))
+            {
                 return true;
+            }
 
-            XUiC_ItemStackGrid srcGrid;
-            IInventory dstInventory;
-            if (__instance.MoveAllowed(out srcGrid, out dstInventory))
+            if (__instance.MoveAllowed(out var srcGrid, out var dstInventory))
             {
                 QuickStack.StashItems(srcGrid, dstInventory, __instance.StashLockedSlots(), XUiM_LootContainer.EItemMoveKind.FillOnly, __instance.MoveStartBottomRight);
             }
@@ -117,11 +117,11 @@ internal class Patches
         public static bool Prefix(XUiC_ContainerStandardControls __instance)
         {
             if (__instance.Parent.Parent.GetType() != typeof(XUiC_BackpackWindow))
+            {
                 return true;
+            }
 
-            XUiC_ItemStackGrid srcGrid;
-            IInventory dstInventory;
-            if (__instance.MoveAllowed(out srcGrid, out dstInventory))
+            if (__instance.MoveAllowed(out var srcGrid, out var dstInventory))
             {
                 QuickStack.StashItems(srcGrid, dstInventory, __instance.StashLockedSlots(), XUiM_LootContainer.EItemMoveKind.FillAndCreate, __instance.MoveStartBottomRight);
             }
@@ -183,7 +183,9 @@ internal class Patches
                     for (int j = 0; j < QuickStack.quickStackHotkeys.Length - 1; j++)
                     {
                         if (!UICamera.GetKey(QuickStack.quickLockHotkeys[j]))
+                        {
                             return;
+                        }
                     }
 
                     XUiC_ItemStack itemStack = _sender as XUiC_ItemStack;
@@ -241,7 +243,9 @@ internal class Patches
         public static void Postfix(XUiC_ItemStack __instance)
         {
             if (__instance.LockType().GetValue<int>() == QuickStack.customLockEnum)
+            {
                 Traverse.Create(__instance).Field("selectionBorderColor").SetValue(new Color32(128, 0, 0, 255));
+            }
         }
     }
 
@@ -256,7 +260,9 @@ internal class Patches
                 for (int i = 0; i < QuickStack.quickStackHotkeys.Length - 1; i++)
                 {
                     if (!UICamera.GetKey(QuickStack.quickStackHotkeys[i]))
+                    {
                         return;
+                    }
                 }
 
                 QuickStack.QuickStackOnClick();
@@ -267,7 +273,9 @@ internal class Patches
                 for (int i = 0; i < QuickStack.quickRestockHotkeys.Length - 1; i++)
                 {
                     if (!UICamera.GetKey(QuickStack.quickRestockHotkeys[i]))
+                    {
                         return;
+                    }
                 }
 
                 QuickStack.QuickRestockOnClick();
@@ -294,18 +302,20 @@ internal class Patches
             {
                 var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
-                using (BinaryWriter binWriter = new BinaryWriter(File.Open(QuickStack.lockedSlotsFile(), FileMode.Create)))
+                using (BinaryWriter binWriter = new BinaryWriter(File.Open(QuickStack.LockedSlotsFile(), FileMode.Create)))
                 {
                     XUiController[] slots = QuickStack.playerBackpack.GetItemStackControllers();
                     binWriter.Write(QuickStack.playerControls.StashLockedSlots());
 
                     binWriter.Write(slots.Length);
                     for (int i = 0; i < slots.Length; i++)
+                    {
                         binWriter.Write((slots[i] as XUiC_ItemStack).LockType().GetValue<int>() == QuickStack.customLockEnum);
+                    }
                 }
 
                 Log.Out($"[QuickStack] Saved locked slots config in { stopwatch.ElapsedMilliseconds } ms");
-            } 
+            }
             catch (Exception e)
             {
                 Log.Error($"[QuickStack] Failed to write locked slots file: { e.Message }. Slot states will not be saved!");
@@ -322,8 +332,8 @@ internal class Patches
             try
             {
                 var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-                string path = QuickStack.lockedSlotsFile();
-                if(!File.Exists(path))
+                string path = QuickStack.LockedSlotsFile();
+                if (!File.Exists(path))
                 {
                     Log.Warning("[QuickStack] No locked slots config detected. Slots will default to unlocked");
                     return;
@@ -345,7 +355,7 @@ internal class Patches
 
                     // locked slots saved by us
                     int quickStackLockedSlots = binReader.ReadInt32();
-                    if(reportedLength != quickStackLockedSlots * sizeof(bool))
+                    if (reportedLength != quickStackLockedSlots * sizeof(bool))
                     {
                         Log.Error("[QuickStack] locked slots config appears corrupted. Slots will be defaulted to unlocked");
                         return;
@@ -361,12 +371,14 @@ internal class Patches
                     for (int i = 0; i < Math.Min(quickStackLockedSlots, slots.Length); i++)
                     {
                         if (binReader.ReadBoolean())
+                        {
                             (slots[i] as XUiC_ItemStack).LockType().SetValue(QuickStack.customLockEnum);
+                        }
                     }
                 }
                 Log.Out($"[QuickStack] Loaded locked slots config in { stopwatch.ElapsedMilliseconds } ms");
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 Log.Error($"[QuickStack] Failed to read locked slots config:  { e.Message }. Slots will default to unlocked");
             }

@@ -1,8 +1,8 @@
-﻿using System;
+﻿using HarmonyLib;
+using QuickStackExtensions;
+using System;
 using System.Collections.Generic;
 using System.IO;
-using HarmonyLib;
-using QuickStackExtensions;
 using UnityEngine;
 
 public enum QuickStackType : byte
@@ -24,7 +24,7 @@ internal class QuickStack
     public static KeyCode[] quickStackHotkeys;
     public static KeyCode[] quickRestockHotkeys;
 
-    public static string lockedSlotsFile()
+    public static string LockedSlotsFile()
     {
         return Path.Combine(GameIO.GetPlayerDataDir(), GameManager.Instance.persistentLocalPlayer.UserIdentifier + ".qsls");
     }
@@ -106,7 +106,9 @@ internal class QuickStack
                 {
                     var offset = new Vector3i(i, j, k);
                     if (!(GameManager.Instance.World.GetTileEntity(0, _center + offset) is TileEntityLootContainer tileEntity))
+                    {
                         continue;
+                    }
 
                     if (IsValidLoot(tileEntity) && IsContainerUnlocked(_playerEntityId, tileEntity))
                     {
@@ -139,7 +141,9 @@ internal class QuickStack
     public static void MoveQuickStack()
     {
         if (backpackWindow.xui.lootContainer != null && backpackWindow.xui.lootContainer.entityId == -1)
+        {
             return;
+        }
 
         var moveKind = GetMoveKind();
 
@@ -156,10 +160,11 @@ internal class QuickStack
                 for (int k = -stackRadius; k <= stackRadius; k++)
                 {
                     Vector3i blockPos = new Vector3i((int)primaryPlayer.position.x + i, (int)primaryPlayer.position.y + j, (int)primaryPlayer.position.z + k);
-                    TileEntityLootContainer tileEntity = GameManager.Instance.World.GetTileEntity(0, blockPos) as TileEntityLootContainer;
 
-                    if (tileEntity == null)
+                    if (!(GameManager.Instance.World.GetTileEntity(0, blockPos) is TileEntityLootContainer tileEntity))
+                    {
                         continue;
+                    }
 
                     //TODO: !tileEntity.IsUserAccessing() && !openedTileEntities.ContainsKey(tileEntity) does not work on multiplayer
                     if (IsValidLoot(tileEntity) && !tileEntity.IsUserAccessing() && !openedTileEntities.ContainsKey(tileEntity))
@@ -175,7 +180,9 @@ internal class QuickStack
     public static void ClientMoveQuickStack(Vector3i center, IEnumerable<Vector3i> _entityContainers)
     {
         if (backpackWindow.xui.lootContainer != null && backpackWindow.xui.lootContainer.entityId == -1)
+        {
             return;
+        }
 
         var moveKind = GetMoveKind();
 
@@ -202,7 +209,9 @@ internal class QuickStack
     public static void MoveQuickRestock()
     {
         if (backpackWindow.xui.lootContainer != null && backpackWindow.xui.lootContainer.entityId == -1)
+        {
             return;
+        }
 
         var moveKind = GetMoveKind(QuickStackType.Restock);
 
@@ -225,7 +234,9 @@ internal class QuickStack
                     Vector3i blockPos = new Vector3i((int)primaryPlayer.position.x + i, (int)primaryPlayer.position.y + j, (int)primaryPlayer.position.z + k);
 
                     if (!(GameManager.Instance.World.GetTileEntity(0, blockPos) is TileEntityLootContainer tileEntity))
+                    {
                         continue;
+                    }
 
                     //TODO: !tileEntity.IsUserAccessing() && !openedTileEntities.ContainsKey(tileEntity) does not work on multiplayer
                     if (IsValidLoot(tileEntity) && !tileEntity.IsUserAccessing() && !openedTileEntities.ContainsKey(tileEntity))
@@ -242,12 +253,16 @@ internal class QuickStack
     public static void ClientMoveQuickRestock(Vector3i center, IEnumerable<Vector3i> _entityContainers)
     {
         if (backpackWindow.xui.lootContainer != null && backpackWindow.xui.lootContainer.entityId == -1)
+        {
             return;
+        }
 
         var moveKind = GetMoveKind(QuickStackType.Restock);
 
         if (_entityContainers == null)
+        {
             return;
+        }
 
         EntityPlayerLocal primaryPlayer = GameManager.Instance.World.GetPrimaryPlayer();
         LocalPlayerUI playerUI = LocalPlayerUI.GetUIForPlayer(primaryPlayer);
@@ -259,7 +274,9 @@ internal class QuickStack
         foreach (var offset in _entityContainers)
         {
             if (!(GameManager.Instance.World.GetTileEntity(0, center + offset) is TileEntityLootContainer tileEntity))
+            {
                 continue;
+            }
 
             lootWindowGroup.SetTileEntityChest("QUICKSTACK", tileEntity);
             StashItems(lootContainer, primaryPlayer.bag, lockedSlots, moveKind, playerControls.MoveStartBottomRight);
