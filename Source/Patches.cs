@@ -1,9 +1,9 @@
-﻿using System;
-using System.IO;
-using System.Linq;
-using Audio;
+﻿using Audio;
 using HarmonyLib;
 using QuickStackExtensions;
+using System;
+using System.IO;
+using System.Linq;
 using UnityEngine;
 internal class Patches
 {
@@ -45,11 +45,11 @@ internal class Patches
         public static bool Prefix(XUiC_ContainerStandardControls __instance)
         {
             if (__instance.Parent.Parent.GetType() != typeof(XUiC_BackpackWindow))
+            {
                 return true;
+            }
 
-            XUiC_ItemStackGrid srcGrid;
-            IInventory dstInventory;
-            if (__instance.MoveAllowed(out srcGrid, out dstInventory))
+            if (__instance.MoveAllowed(out var srcGrid, out var dstInventory))
             {
                 ValueTuple<bool, bool> valueTuple = QuickStack.StashItems(srcGrid, dstInventory, __instance.StashLockedSlots(), XUiM_LootContainer.EItemMoveKind.All, __instance.MoveStartBottomRight);
                 Action<bool, bool> moveAllDone = __instance.MoveAllDone;
@@ -71,7 +71,9 @@ internal class Patches
         public static bool Prefix(XUiC_ContainerStandardControls __instance)
         {
             if (__instance.Parent.Parent.GetType() != typeof(XUiC_BackpackWindow))
+            {
                 return true;
+            }
 
             var moveKind = QuickStack.GetMoveKind();
             if (moveKind == XUiM_LootContainer.EItemMoveKind.FillOnly)
@@ -79,9 +81,7 @@ internal class Patches
                 moveKind = XUiM_LootContainer.EItemMoveKind.FillOnlyFirstCreateSecond;
             }
 
-            XUiC_ItemStackGrid srcGrid;
-            IInventory dstInventory;
-            if (__instance.MoveAllowed(out srcGrid, out dstInventory))
+            if (__instance.MoveAllowed(out var srcGrid, out var dstInventory))
             {
                 QuickStack.StashItems(srcGrid, dstInventory, __instance.StashLockedSlots(), moveKind, __instance.MoveStartBottomRight);
             }
@@ -97,11 +97,11 @@ internal class Patches
         public static bool Prefix(XUiC_ContainerStandardControls __instance)
         {
             if (__instance.Parent.Parent.GetType() != typeof(XUiC_BackpackWindow))
+            {
                 return true;
+            }
 
-            XUiC_ItemStackGrid srcGrid;
-            IInventory dstInventory;
-            if (__instance.MoveAllowed(out srcGrid, out dstInventory))
+            if (__instance.MoveAllowed(out var srcGrid, out var dstInventory))
             {
                 QuickStack.StashItems(srcGrid, dstInventory, __instance.StashLockedSlots(), XUiM_LootContainer.EItemMoveKind.FillOnly, __instance.MoveStartBottomRight);
             }
@@ -117,11 +117,11 @@ internal class Patches
         public static bool Prefix(XUiC_ContainerStandardControls __instance)
         {
             if (__instance.Parent.Parent.GetType() != typeof(XUiC_BackpackWindow))
+            {
                 return true;
+            }
 
-            XUiC_ItemStackGrid srcGrid;
-            IInventory dstInventory;
-            if (__instance.MoveAllowed(out srcGrid, out dstInventory))
+            if (__instance.MoveAllowed(out var srcGrid, out var dstInventory))
             {
                 QuickStack.StashItems(srcGrid, dstInventory, __instance.StashLockedSlots(), XUiM_LootContainer.EItemMoveKind.FillAndCreate, __instance.MoveStartBottomRight);
             }
@@ -183,7 +183,9 @@ internal class Patches
                     for (int j = 0; j < QuickStack.quickStackHotkeys.Length - 1; j++)
                     {
                         if (!UICamera.GetKey(QuickStack.quickLockHotkeys[j]))
+                        {
                             return;
+                        }
                     }
 
                     XUiC_ItemStack itemStack = _sender as XUiC_ItemStack;
@@ -241,7 +243,9 @@ internal class Patches
         public static void Postfix(XUiC_ItemStack __instance)
         {
             if (__instance.LockType().GetValue<int>() == QuickStack.customLockEnum)
+            {
                 Traverse.Create(__instance).Field("selectionBorderColor").SetValue(new Color32(128, 0, 0, 255));
+            }
         }
     }
 
@@ -256,7 +260,9 @@ internal class Patches
                 for (int i = 0; i < QuickStack.quickStackHotkeys.Length - 1; i++)
                 {
                     if (!UICamera.GetKey(QuickStack.quickStackHotkeys[i]))
+                    {
                         return;
+                    }
                 }
 
                 QuickStack.QuickStackOnClick();
@@ -267,7 +273,9 @@ internal class Patches
                 for (int i = 0; i < QuickStack.quickRestockHotkeys.Length - 1; i++)
                 {
                     if (!UICamera.GetKey(QuickStack.quickRestockHotkeys[i]))
+                    {
                         return;
+                    }
                 }
 
                 QuickStack.QuickRestockOnClick();
