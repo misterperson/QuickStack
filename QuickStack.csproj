@@ -66,12 +66,14 @@
     <Compile Include="Source\Patches.cs" />
     <Compile Include="Source\QuickStack.cs" />
     <Compile Include="Source\Init.cs" />
+    <Compile Include="Source\XUiC_ContainerStandardControls_Extensions.cs" />
+    <Compile Include="Source\XUiC_ItemStack_Extensions.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Config\Localization.txt" />
     <Content Include="Config\XUi\windows.xml" />
     <Content Include="ModInfo.xml" />
-	<Content Include="QuickStackConfig.xml" />
+    <Content Include="QuickStackConfig.xml" />
     <Content Include="UIAtlases\UIAtlas\ui_game_symbol_quickrestock.png" />
     <Content Include="UIAtlases\UIAtlas\ui_game_symbol_quickstack.png" />
   </ItemGroup>

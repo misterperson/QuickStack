@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using HarmonyLib;
+using QuickStackExtensions;
 using UnityEngine;
 
 public enum QuickStackType : byte
@@ -145,7 +146,7 @@ internal class QuickStack
         var moveKind = GetMoveKind();
 
         EntityPlayerLocal primaryPlayer = GameManager.Instance.World.GetPrimaryPlayer();
-        int lockedSlots = Traverse.Create(playerControls).Field("stashLockedSlots").GetValue<int>();
+        int lockedSlots = playerControls.StashLockedSlots();
 
         //returns tile entities opened by other players
         Dictionary<TileEntity, int> openedTileEntities = GetOpenedTiles();
@@ -184,7 +185,7 @@ internal class QuickStack
         {
             return;
         }
-        int lockedSlots = Traverse.Create(playerControls).Field("stashLockedSlots").GetValue<int>();
+        int lockedSlots = playerControls.StashLockedSlots();
 
         foreach (var offset in _entityContainers)
         {
@@ -209,7 +210,7 @@ internal class QuickStack
 
         EntityPlayerLocal primaryPlayer = GameManager.Instance.World.GetPrimaryPlayer();
         LocalPlayerUI playerUI = LocalPlayerUI.GetUIForPlayer(primaryPlayer);
-        int lockedSlots = Traverse.Create(playerControls).Field("stashLockedSlots").GetValue<int>();
+        int lockedSlots = playerControls.StashLockedSlots();
         XUiC_LootWindowGroup lootWindowGroup = (XUiC_LootWindowGroup)((XUiWindowGroup)playerUI.windowManager.GetWindow("looting")).Controller;
         XUiC_LootWindow lootWindow = Traverse.Create(lootWindowGroup).Field("lootWindow").GetValue<XUiC_LootWindow>();
         XUiC_LootContainer lootContainer = Traverse.Create(lootWindow).Field("lootContainer").GetValue<XUiC_LootContainer>();
@@ -252,7 +253,7 @@ internal class QuickStack
 
         EntityPlayerLocal primaryPlayer = GameManager.Instance.World.GetPrimaryPlayer();
         LocalPlayerUI playerUI = LocalPlayerUI.GetUIForPlayer(primaryPlayer);
-        int lockedSlots = Traverse.Create(playerControls).Field("stashLockedSlots").GetValue<int>();
+        int lockedSlots = playerControls.StashLockedSlots();
         XUiC_LootWindowGroup lootWindowGroup = (XUiC_LootWindowGroup)((XUiWindowGroup)playerUI.windowManager.GetWindow("looting")).Controller;
         XUiC_LootWindow lootWindow = Traverse.Create(lootWindowGroup).Field("lootWindow").GetValue<XUiC_LootWindow>();
         XUiC_LootContainer lootContainer = Traverse.Create(lootWindow).Field("lootContainer").GetValue<XUiC_LootContainer>();
