@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Diagnostics;
 
 // Client => Server
 // Notifies server that containers are no longer in-use
@@ -14,10 +15,12 @@ class NetPackageUnlockContainers : NetPackageInvManageAction
 
     public override void ProcessPackage(World _world, GameManager _callbacks)
     {
-        if (containerEntities == null || _world == null)
+        if (offsets == null || _world == null)
         {
             return;
         }
+
+        var stopwatch = Stopwatch.StartNew();
 
         var lockedTileEntities = QuickStack.GetOpenedTiles();
         if (lockedTileEntities == null)
@@ -25,7 +28,7 @@ class NetPackageUnlockContainers : NetPackageInvManageAction
             return;
         }
 
-        foreach (var offset in containerEntities)
+        foreach (var offset in offsets)
         {
             var entity = _world.GetTileEntity(0, center + offset);
             if (entity != null)
@@ -33,6 +36,8 @@ class NetPackageUnlockContainers : NetPackageInvManageAction
                 lockedTileEntities.Remove(entity);
             }
         }
+
+        Log.Out($"[QuickStack] Unlocked containers for Client { Sender.CrossplatformId } in { stopwatch.ElapsedMilliseconds }");
     }
 
 }

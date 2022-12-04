@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 
 // Server => Client
 // Informs client it is safe to quick stack/restock
@@ -21,26 +22,39 @@ class NetPackageDoQuickStack : NetPackageInvManageAction
 
     public override void ProcessPackage(World _world, GameManager _callbacks)
     {
-        if (containerEntities == null || _world == null || containerEntities.Count == 0)
+        if (offsets == null || _world == null || offsets.Count == 0)
         {
             return;
         }
 
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+        var lootContainers = offsets
+            .Select(offset => _callbacks.World.GetTileEntity(0, center + offset) as TileEntityLootContainer)
+            .Where(container => container != null)
+            .ToArray();
+
         switch (type)
         {
             case QuickStackType.Stack:
-                QuickStack.ClientMoveQuickStack(center, containerEntities);
+                QuickStack.MoveQuickStack(lootContainers);
                 break;
 
             case QuickStackType.Restock:
-                QuickStack.ClientMoveQuickRestock(center, containerEntities);
+                QuickStack.MoveQuickRestock(lootContainers);
                 break;
 
             default:
+                Log.Warning($"[QuickStack] Unknown QuickStack type { (int)type }");
                 break;
         }
 
-        ConnectionManager.Instance.SendToServer(NetPackageManager.GetPackage<NetPackageUnlockContainers>().Setup(center, containerEntities));
+        ConnectionManager.Instance.SendToServer(
+            NetPackageManager.GetPackage<NetPackageUnlockContainers>()
+                .Setup(center, offsets)
+        );
+
+        Log.Out($"[QuickStack] Processed { type } in { stopwatch.ElapsedMilliseconds } ms");
     }
 
     public override void read(PooledBinaryReader _reader)

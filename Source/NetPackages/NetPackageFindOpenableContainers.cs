@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System.Diagnostics;
+using System.Linq;
 
 // Client => Server
 // Requests a list of containers that are safe to modify
@@ -37,28 +38,37 @@ class NetPackageFindOpenableContainers : NetPackage
             return;
         }
 
+        var stopwatch = Stopwatch.StartNew();
+
         var lockedTileEntities = QuickStack.GetOpenedTiles();
         if (lockedTileEntities == null)
         {
             return;
         }
 
-        List<Vector3i> entityOffsets = new List<Vector3i>(256);
-
         var center = new Vector3i(playerEntity.position);
-        foreach (var (offset, entity) in QuickStack.FindNearbyLootContainers(center, playerEntityId))
+        var unlockedContainers = QuickStack.FindNearbyLootContainers(center)
+            .Where(container => QuickStack.UserCanOpen(Sender.CrossplatformId, container))
+            .ToList();
+
+        var offsets = unlockedContainers
+            .Select(container => container.ToWorldPos() - center)
+            .ToList();
+
+        if (offsets.Count > 0)
         {
-            if (entity != null)
+            for (int i = 0; i < unlockedContainers.Count; ++i)
             {
-                entityOffsets.Add(offset);
-                lockedTileEntities.Add(entity, playerEntityId);
+                lockedTileEntities.Add(unlockedContainers[i], Sender.entityId);
             }
+
+            Sender.SendPackage(
+                NetPackageManager.GetPackage<NetPackageDoQuickStack>()
+                    .Setup(center, offsets, type)
+            );
         }
 
-        if (entityOffsets.Count > 0)
-        {
-            Sender.SendPackage(NetPackageManager.GetPackage<NetPackageDoQuickStack>().Setup(center, entityOffsets, type));
-        }
+        Log.Out($"[QuickStack] Found containers for Client { Sender.CrossplatformId } in { stopwatch.ElapsedMilliseconds } ms");
     }
 
     public override void read(PooledBinaryReader _reader)

@@ -9,7 +9,7 @@ public abstract class NetPackageInvManageAction : NetPackage
     protected NetPackageInvManageAction Setup(Vector3i _center, List<Vector3i> _containerEntities)
     {
         center = _center;
-        containerEntities = _containerEntities;
+        offsets = _containerEntities;
         return this;
     }
 
@@ -51,7 +51,7 @@ public abstract class NetPackageInvManageAction : NetPackage
 
     public override int GetLength()
     {
-        return 3 * sizeof(int) + sizeof(ushort) + 3 * containerEntities.Count;
+        return 3 * sizeof(int) + sizeof(ushort) + 3 * offsets.Count;
     }
 
     public abstract override void ProcessPackage(World _world, GameManager _callbacks);
@@ -62,11 +62,11 @@ public abstract class NetPackageInvManageAction : NetPackage
         Read(_reader, out center);
 
         int count = _reader.ReadInt16();
-        containerEntities = new List<Vector3i>(count);
+        offsets = new List<Vector3i>(count);
         for (int i = 0; i < count; ++i)
         {
             ReadOptimized(_reader, out var idx);
-            containerEntities.Add(idx);
+            offsets.Add(idx);
         }
     }
 
@@ -76,19 +76,19 @@ public abstract class NetPackageInvManageAction : NetPackage
 
         Write(_writer, center);
 
-        if (containerEntities == null)
+        if (offsets == null)
         {
             _writer.Write((ushort)0);
             return;
         }
 
-        _writer.Write((ushort)containerEntities.Count);
-        foreach (var id in containerEntities)
+        _writer.Write((ushort)offsets.Count);
+        foreach (var id in offsets)
         {
             WriteOptimized(_writer, id);
         }
     }
 
     protected Vector3i center;
-    protected List<Vector3i> containerEntities = new List<Vector3i>();
+    protected List<Vector3i> offsets = new List<Vector3i>();
 }
