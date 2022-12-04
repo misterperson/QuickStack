@@ -15,11 +15,11 @@ public enum QuickStackType : byte
 internal class QuickStack
 {
     public static float[] lastClickTimes = new float[(int)QuickStackType.Count];
-    public static int stackRadius = 7;
+    public static readonly int stackRadius = 7;
     public static XUiC_Backpack playerBackpack;
     public static XUiC_BackpackWindow backpackWindow;
     public static XUiC_ContainerStandardControls playerControls;
-    public static int customLockEnum = (int)XUiC_ItemStack.LockTypes.Burning + 1; //XUiC_ItemStack.LockTypes - Last used is Burning with value 5, so we use 6 for our custom locked slots
+    public static readonly int customLockEnum = (int)XUiC_ItemStack.LockTypes.Burning + 1; //XUiC_ItemStack.LockTypes - Last used is Burning with value 5, so we use 6 for our custom locked slots
     public static KeyCode[] quickLockHotkeys;
     public static KeyCode[] quickStackHotkeys;
     public static KeyCode[] quickRestockHotkeys;
@@ -95,11 +95,6 @@ internal class QuickStack
     // Yields all openable loot containers in a cubic radius about a point
     public static IEnumerable<ValueTuple<Vector3i, TileEntityLootContainer>> FindNearbyLootContainers(Vector3i _center, int _playerEntityId)
     {
-        if (stackRadius > 127 || stackRadius < -127)
-        {
-            stackRadius = 127;
-        }
-
         for (int i = -stackRadius; i <= stackRadius; i++)
         {
             for (int j = -stackRadius; j <= stackRadius; j++)
@@ -404,7 +399,7 @@ internal class QuickStack
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             XUiController[] slots = playerBackpack.GetItemStackControllers();
 
-            using (BinaryWriter binWriter = new BinaryWriter(File.Open(lockedSlotsFile(), FileMode.Create)))
+            using (BinaryWriter binWriter = new BinaryWriter(File.Open(LockedSlotsFile(), FileMode.Create)))
             {
                 binWriter.Write(Traverse.Create(playerControls).Field("stashLockedSlots").GetValue<int>());
 
@@ -425,7 +420,7 @@ internal class QuickStack
         try
         {
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-            string path = lockedSlotsFile();
+            string path = LockedSlotsFile();
             if (!File.Exists(path))
             {
                 Log.Warning("[QuickStack] No locked slots config detected. Slots will default to unlocked");

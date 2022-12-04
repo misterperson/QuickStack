@@ -28,16 +28,12 @@ class NetPackageFindOpenableContainers : NetPackage
 
         if (type >= QuickStackType.Count || type < QuickStackType.Stack)
         {
+            Log.Warning($"[QuickStack] Invalid Quickstack type { (int)type }");
             return;
         }
         if (!_world.Players.dict.TryGetValue(playerEntityId, out var playerEntity) || playerEntity == null)
         {
-            return;
-        }
-
-        var cinfo = ConnectionManager.Instance.Clients.ForEntityId(playerEntityId);
-        if (cinfo == null)
-        {
+            Log.Warning("[QuickStack] Unable to find Sender player entity");
             return;
         }
 
@@ -47,22 +43,21 @@ class NetPackageFindOpenableContainers : NetPackage
             return;
         }
 
-        List<Vector3i> openableEntities = new List<Vector3i>(256);
+        List<Vector3i> entityOffsets = new List<Vector3i>(256);
 
         var center = new Vector3i(playerEntity.position);
-        foreach (var centerEntityPair in QuickStack.FindNearbyLootContainers(center, playerEntityId))
+        foreach (var (offset, entity) in QuickStack.FindNearbyLootContainers(center, playerEntityId))
         {
-            if (centerEntityPair.Item2 == null)
+            if (entity != null)
             {
-                continue;
+                entityOffsets.Add(offset);
+                lockedTileEntities.Add(entity, playerEntityId);
             }
-            openableEntities.Add(centerEntityPair.Item1);
-            lockedTileEntities.Add(centerEntityPair.Item2, playerEntityId);
         }
 
-        if (openableEntities.Count > 0)
+        if (entityOffsets.Count > 0)
         {
-            cinfo.SendPackage(NetPackageManager.GetPackage<NetPackageDoQuickStack>().Setup(center, openableEntities, type));
+            Sender.SendPackage(NetPackageManager.GetPackage<NetPackageDoQuickStack>().Setup(center, entityOffsets, type));
         }
     }
 
